@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObsoleteMigrator.Analyzer", "ObsoleteMigrator.Analyzer\ObsoleteMigrator.Analyzer.csproj", "{A8D5944F-7862-4D3F-A030-8527DAF81934}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObsoleteMigrator.Analyzer.Tests", "ObsoleteMigrator.Analyzer.Tests\ObsoleteMigrator.Analyzer.Tests.csproj", "{E41522E0-45C1-4276-AAB5-B1B683636049}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObsoleteMigrator.Analyzer.Configuration", "ObsoleteMigrator.Analyzer.Configuration\ObsoleteMigrator.Analyzer.Configuration.csproj", "{DBE71E90-B3A7-4A84-9E6F-EBC8AFF0B304}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8D5944F-7862-4D3F-A030-8527DAF81934}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8D5944F-7862-4D3F-A030-8527DAF81934}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8D5944F-7862-4D3F-A030-8527DAF81934}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8D5944F-7862-4D3F-A030-8527DAF81934}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E41522E0-45C1-4276-AAB5-B1B683636049}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E41522E0-45C1-4276-AAB5-B1B683636049}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E41522E0-45C1-4276-AAB5-B1B683636049}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E41522E0-45C1-4276-AAB5-B1B683636049}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBE71E90-B3A7-4A84-9E6F-EBC8AFF0B304}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBE71E90-B3A7-4A84-9E6F-EBC8AFF0B304}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBE71E90-B3A7-4A84-9E6F-EBC8AFF0B304}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBE71E90-B3A7-4A84-9E6F-EBC8AFF0B304}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

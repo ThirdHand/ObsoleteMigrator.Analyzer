@@ -1,9 +1,13 @@
-﻿namespace ObsoleteMigrator.Analyzer.Configuration.Json
+﻿using System.Text.Json.Serialization;
+
+namespace ObsoleteMigrator.Analyzer.Configuration.Models
 {
     public class MigrationStatement
     {
-        public string ClassFullName { get; }
+        [JsonPropertyName("classFullName")]
+        public string ClassFullName { get; set; } = null!;
 
-        public string MethodName { get; }
+        [JsonPropertyName("methodName")]
+        public string MethodName { get; set; } = null!;
     }
 }

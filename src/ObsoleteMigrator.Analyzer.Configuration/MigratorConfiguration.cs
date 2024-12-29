@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using ObsoleteMigrator.Analyzer.Configuration.Json;
+using ObsoleteMigrator.Analyzer.Configuration.Models;
 
 namespace ObsoleteMigrator.Analyzer.Configuration
 {
@@ -19,7 +19,7 @@ namespace ObsoleteMigrator.Analyzer.Configuration
                 return null;
             }
 
-            var migrationRecords = JsonSerializer.Deserialize<MigrationRecord[]>(jsonText)!;
+            var migrationRecords = JsonSerializer.Deserialize<MigrationRecord[]>(jsonText!)!;
 
             var migrationRecordsMap = migrationRecords
                 .ToDictionary(x => (x.Source.ClassFullName, x.Source.MethodName));

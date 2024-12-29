@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -10,11 +11,11 @@ using ObsoleteMigrator.Analyzer.Configuration;
 namespace ObsoleteMigrator.Analyzer;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public class ObsoleteCallsDiagnosticAnalyzer : DiagnosticAnalyzer
+public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
 {
     private MigratorConfiguration _migratorConfiguration = null!;
 
-    internal const string DiagnosticId = "OCD0001";
+    public const string DiagnosticId = "OCD0001";
 
     private const string ConfigurationFilePath = "ObsoleteMigrator.json";
     private const string Title = "Title";
@@ -44,7 +45,7 @@ public class ObsoleteCallsDiagnosticAnalyzer : DiagnosticAnalyzer
             var configFile = additionalFiles
                 .SingleOrDefault(file => file.Path.EndsWith(ConfigurationFilePath, StringComparison.OrdinalIgnoreCase));
 
-            if (configFile == null)
+            if (configFile is null)
             {
                 return;
             }
@@ -52,7 +53,7 @@ public class ObsoleteCallsDiagnosticAnalyzer : DiagnosticAnalyzer
             var configFileText = configFile.GetText()?.ToString();
             var configuration = MigratorConfiguration.CreateFromJson(configFileText);
 
-            if (configuration == null)
+            if (configuration is null)
             {
                 return;
             }
@@ -78,15 +79,24 @@ public class ObsoleteCallsDiagnosticAnalyzer : DiagnosticAnalyzer
         }
 
         var migrationRecord = _migratorConfiguration.GetMigrationRecord(
-            methodSymbol.Name,
-            methodSymbol.ContainingType.ToDisplayString());
+            methodSymbol.ContainingType.ToDisplayString(),
+            methodSymbol.Name);
 
-        if (migrationRecord == null)
+        if (migrationRecord is null)
         {
             return;
         }
 
-        var diagnostic = Diagnostic.Create(Rule, invocation.GetLocation());
+        var migrationRecordJson = JsonSerializer.Serialize(migrationRecord);
+
+        var diagnosticProperties = ImmutableDictionary<string, string>.Empty
+            .Add(nameof(migrationRecord), migrationRecordJson);
+
+        var diagnostic = Diagnostic.Create(
+            Rule,
+            invocation.GetLocation(),
+            diagnosticProperties!);
+
         nodeContext.ReportDiagnostic(diagnostic);
     }
 }

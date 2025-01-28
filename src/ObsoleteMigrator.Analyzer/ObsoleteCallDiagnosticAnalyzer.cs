@@ -22,8 +22,7 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(Rule);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Rule];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -60,7 +59,7 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
             SyntaxKind.InvocationExpression);
     }
 
-    private void AnalyzeInvocationExpression(SyntaxNodeAnalysisContext nodeContext)
+    private static void AnalyzeInvocationExpression(SyntaxNodeAnalysisContext nodeContext)
     {
         var semanticModel = nodeContext.SemanticModel;
         var invocation = (InvocationExpressionSyntax)nodeContext.Node;

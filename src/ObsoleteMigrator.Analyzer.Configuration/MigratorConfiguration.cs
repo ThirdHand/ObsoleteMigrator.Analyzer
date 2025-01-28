@@ -6,8 +6,6 @@ namespace ObsoleteMigrator.Analyzer.Configuration
 {
     public static class MigratorConfiguration
     {
-
-
         private static Dictionary<MappingKey, MigrationRecord> _migrationRecords = null!;
 
         public static bool TryInitialize(string? migratorConfigurationJsonText)

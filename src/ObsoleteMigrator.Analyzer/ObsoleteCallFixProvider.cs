@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,17 +9,18 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using ObsoleteMigrator.Analyzer.Configuration;
 using ObsoleteMigrator.Analyzer.Configuration.Models;
 using ObsoleteMigrator.Analyzer.Shared;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ObsoleteMigrator.Analyzer;
 
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ObsoleteCallFixProvider))]
 public class ObsoleteCallFixProvider : CodeFixProvider
 {
-    public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-        ImmutableArray.Create(MigratorConstants.DiagnosticId);
+    public override ImmutableArray<string> FixableDiagnosticIds { get; } = [MigratorConstants.DiagnosticId];
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -56,8 +59,8 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         InvocationExpressionSyntax oldInvocation,
         CancellationToken cancellationToken)
     {
-        var classDeclaration = oldInvocation.FirstAncestorOrSelf<ClassDeclarationSyntax>();
-        if (classDeclaration is null)
+        var oldClassDeclaration = oldInvocation.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+        if (oldClassDeclaration is null)
         {
             return document;
         }
@@ -65,30 +68,40 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         var semanticModel = (await document.GetSemanticModelAsync(cancellationToken))!;
 
         var destinationFieldDeclaration = GetExistingDestinationField(
-            classDeclaration,
+            oldClassDeclaration,
             semanticModel,
             migrationRecord.Destination.ClassFullName);
 
         string? fieldName = null;
+        root = root.TrackNodes(oldInvocation, oldClassDeclaration);
+
         if (destinationFieldDeclaration is null)
         {
             EnsureUsingDirectiveExists(
                 semanticModel,
                 migrationRecord.Destination.ClassFullName,
-                root,
-                ref document);
+                ref root);
+
+            var trackedOldClassDeclaration = root.GetCurrentNode(oldClassDeclaration)!;
+            var newClassDeclaration = trackedOldClassDeclaration;
+            var fieldInsertionIndex = GetLastAppropriateFieldPosition(oldClassDeclaration.Members);
 
             destinationFieldDeclaration = CreateDestinationField(
+                semanticModel,
                 migrationRecord.Destination.ClassFullName,
-                ref classDeclaration);
+                fieldInsertionIndex,
+                ref newClassDeclaration);
 
-            var constructorDeclaration = EnsureConstructorDeclarationExists(ref classDeclaration);
+            var ctorInsertionIndex = fieldInsertionIndex + 1;
+            var constructorDeclaration = EnsureConstructorDeclarationExists(ctorInsertionIndex, ref newClassDeclaration);
 
             fieldName = GetFieldNameFromFieldDeclaration(destinationFieldDeclaration);
             var fieldTypeName = destinationFieldDeclaration.Declaration.Type.ToString();
 
             CreateConstructorParameter(fieldName, fieldTypeName, ref constructorDeclaration);
-            CreateConstructorAssignment(fieldName, fieldTypeName, constructorDeclaration, ref classDeclaration);
+            CreateConstructorAssignment(fieldName, constructorDeclaration, ref newClassDeclaration);
+
+            root = root.ReplaceNode(trackedOldClassDeclaration, newClassDeclaration);
         }
 
         fieldName ??= GetFieldNameFromFieldDeclaration(destinationFieldDeclaration);
@@ -109,18 +122,20 @@ public class ObsoleteCallFixProvider : CodeFixProvider
 
     private static void CreateConstructorAssignment(
         string fieldName,
-        string fieldTypeName,
         ConstructorDeclarationSyntax constructorDeclaration,
         ref ClassDeclarationSyntax classDeclaration)
     {
-        var assignment = SyntaxFactory.ExpressionStatement(
-            SyntaxFactory.AssignmentExpression(
+        var assignment = ExpressionStatement(
+            AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
-                SyntaxFactory.IdentifierName(fieldName),
-                SyntaxFactory.IdentifierName(fieldTypeName)));
+                IdentifierName(fieldName),
+                IdentifierName(fieldName.TrimStart('_'))));
 
         constructorDeclaration = constructorDeclaration
-            .WithBody(constructorDeclaration.Body!.AddStatements(assignment));
+            .WithBody(constructorDeclaration.Body!
+                .AddStatements(assignment))
+            .NormalizeWhitespace()
+            .WithTrailingTrivia(ElasticCarriageReturnLineFeed);
 
         classDeclaration = classDeclaration.ReplaceNode(
             classDeclaration.Members.OfType<ConstructorDeclarationSyntax>().First(),
@@ -133,14 +148,14 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         ref ConstructorDeclarationSyntax constructorDeclaration)
     {
         var constructorParam =
-            SyntaxFactory
-                .Parameter(SyntaxFactory.Identifier(fieldName.TrimStart('_')))
-                .WithType(SyntaxFactory.IdentifierName(fieldTypeName));
+            Parameter(Identifier(fieldName.TrimStart('_')))
+                .WithType(IdentifierName(fieldTypeName));
 
         constructorDeclaration = constructorDeclaration.AddParameterListParameters(constructorParam);
     }
 
     private static ConstructorDeclarationSyntax EnsureConstructorDeclarationExists(
+        int insertionIndex,
         ref ClassDeclarationSyntax classDeclaration)
     {
         var constructor = classDeclaration.Members
@@ -149,18 +164,45 @@ public class ObsoleteCallFixProvider : CodeFixProvider
 
         if (constructor is null)
         {
-            constructor =
-                SyntaxFactory
-                    .ConstructorDeclaration(classDeclaration.Identifier)
-                    .WithModifiers(
-                        SyntaxFactory.TokenList(
-                            SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
-                    .WithBody(SyntaxFactory.Block());
+            constructor = ConstructorDeclaration(classDeclaration.Identifier)
+                .WithModifiers(TokenList(Token(SyntaxKind.PublicKeyword)))
+                .WithBody(Block());
 
-            classDeclaration = classDeclaration.AddMembers(constructor);
+            var newClassMembers = classDeclaration.Members.Insert(insertionIndex, constructor);
+
+            classDeclaration = classDeclaration.WithMembers(newClassMembers);
         }
 
         return constructor;
+    }
+
+    private static int GetLastAppropriateFieldPosition(IEnumerable<MemberDeclarationSyntax> members)
+    {
+        var membersArray = members.ToArray();
+
+        var lastFieldIndex = -1;
+        var lastReadonlyFieldIndex = -1;
+
+        for (var i = 0; i < membersArray.Length; i++)
+        {
+            var member = membersArray[i];
+
+            if (member is not FieldDeclarationSyntax fds)
+            {
+                continue;
+            }
+
+            lastFieldIndex = i;
+
+            if (fds.Modifiers.Any(m => m.IsKind(SyntaxKind.ReadOnlyKeyword)))
+            {
+                lastReadonlyFieldIndex = i;
+            }
+        }
+
+        return lastReadonlyFieldIndex == -1
+            ? lastFieldIndex + 1
+            : lastReadonlyFieldIndex + 1;
     }
 
     private static FieldDeclarationSyntax? GetExistingDestinationField(
@@ -183,57 +225,72 @@ public class ObsoleteCallFixProvider : CodeFixProvider
     private static void EnsureUsingDirectiveExists(
         SemanticModel semanticModel,
         string classFullName,
-        SyntaxNode root,
-        ref Document document)
+        ref SyntaxNode root)
     {
-        var usings = root
-            .DescendantNodesAndSelf()
-            .OfType<UsingDirectiveSyntax>()
-            .ToList();
-
         var destinationType = semanticModel.Compilation.GetTypeByMetadataName(classFullName);
-        var targetNamespace = destinationType?.ContainingNamespace?.ToDisplayString();
+        var targetNamespace = destinationType!.ContainingNamespace!.ToDisplayString();
 
-        if (targetNamespace == "<global namespace>" || usings.Any(u => u.Name.ToString() == targetNamespace))
+        var compilationUnit = (root as CompilationUnitSyntax)!;
+        var targetUsingAlreadyAdded = compilationUnit.Usings
+            .Any(u => u.Name!.ToString() == targetNamespace);
+
+        if (targetUsingAlreadyAdded)
         {
             return;
         }
 
-        var newUsingDirective = SyntaxFactory.UsingDirective(
-            SyntaxFactory.ParseName(targetNamespace!));
+        var newUsingDirective = UsingDirective(ParseName(targetNamespace))
+            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+            .NormalizeWhitespace()
+            .WithTrailingTrivia(ElasticCarriageReturnLineFeed);
 
-        var namespaceDeclaration = root
-            .DescendantNodesAndSelf()
-            .OfType<NamespaceDeclarationSyntax>()
-            .First();
-
-        var newRoot = root.InsertNodesBefore(namespaceDeclaration, [newUsingDirective]);
-
-        document = document.WithSyntaxRoot(newRoot);
+        root = compilationUnit.AddUsings(newUsingDirective);
     }
 
     private static FieldDeclarationSyntax CreateDestinationField(
+        SemanticModel semanticModel,
         string classFullName,
+        int insertionIndex,
         ref ClassDeclarationSyntax classDeclaration)
     {
-        var classShortName = classFullName.Split('.').Last();
+        var destinationType = semanticModel.Compilation.GetTypeByMetadataName(classFullName);
+        string classShortName;
+
+        if (destinationType != null)
+        {
+            var isStandardInterface =
+                destinationType is { TypeKind: TypeKind.Interface, Name.Length: > 1 } &&
+                destinationType.Name[0] == 'I' &&
+                char.IsUpper(destinationType.Name[1]);
+
+            classShortName = isStandardInterface
+                ? destinationType.Name.Substring(1)
+                : destinationType.Name;
+        }
+        else
+        {
+            classShortName = classFullName.Split('.').Last();
+        }
+
         var fieldName = $"_{char.ToLower(classShortName[0])}{classShortName.Substring(1)}";
 
-        var fieldDeclaration =
-            SyntaxFactory
-                .FieldDeclaration(
-                    SyntaxFactory.VariableDeclaration(
-                            SyntaxFactory.IdentifierName(classShortName))
-                        .WithVariables(
-                            SyntaxFactory.SingletonSeparatedList(
-                                SyntaxFactory.VariableDeclarator(
-                                    SyntaxFactory.Identifier(fieldName)))))
-                .WithModifiers(
-                    SyntaxFactory.TokenList(
-                        SyntaxFactory.Token(SyntaxKind.PrivateKeyword),
-                        SyntaxFactory.Token(SyntaxKind.ReadOnlyKeyword)));
+        var variableDeclarator = VariableDeclarator(Identifier(fieldName));
+        var variableDeclaration = VariableDeclaration(IdentifierName(classShortName))
+            .WithVariables(SingletonSeparatedList(variableDeclarator));
 
-        classDeclaration = classDeclaration.AddMembers(fieldDeclaration);
+        var modifiers = TokenList(
+            Token(SyntaxKind.PrivateKeyword),
+            Token(SyntaxKind.ReadOnlyKeyword));
+
+        var fieldDeclaration = FieldDeclaration(variableDeclaration)
+            .WithModifiers(modifiers)
+            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+            .NormalizeWhitespace()
+            .WithTrailingTrivia(ElasticCarriageReturnLineFeed);
+
+        var newClassMembers = classDeclaration.Members.Insert(insertionIndex, fieldDeclaration);
+
+        classDeclaration = classDeclaration.WithMembers(newClassMembers);
 
         return fieldDeclaration;
     }
@@ -246,43 +303,101 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         SyntaxNode root,
         Document document)
     {
-        var methodSymbol = semanticModel.GetSymbolInfo(oldInvocation).Symbol as IMethodSymbol;
-        var parameters = methodSymbol?.Parameters;
+        var destinationType = semanticModel.Compilation.GetTypeByMetadataName(
+            migrationRecord.Destination.ClassFullName);
 
-        var paramsMapping = migrationRecord.Mappings
-            .ToDictionary(x => x.SourceArgument);
+        var destinationMethod = destinationType?
+            .GetMembers(migrationRecord.Destination.MethodName)
+            .OfType<IMethodSymbol>()
+            .FirstOrDefault();
 
-        var newArguments = oldInvocation.ArgumentList.Arguments
-            .Select((x, index) =>
+        if (destinationMethod == null)
+        {
+            return document;
+        }
+
+        var sourceArguments = MapArgumentsByName(oldInvocation, semanticModel);
+        var newArguments = new List<ArgumentSyntax>();
+
+        foreach (var destParameter in destinationMethod.Parameters)
+        {
+            var sourceArg = migrationRecord.Mappings
+                .Where(m => m.DestinationArgument == destParameter.Name)
+                .Select(m => sourceArguments
+                    .TryGetValue(m.SourceArgument, out var sourceArg)
+                    ? sourceArg
+                    : null)
+                .SingleOrDefault();
+
+            if (sourceArg != null)
             {
-                var parameter = parameters?[index];
-                var oldParamName = x.NameColon?.Name.Identifier.Text ?? parameter!.Name;
+                newArguments.Add(CreateArgument(sourceArg, destParameter));
+            }
+            else if (!destParameter.HasExplicitDefaultValue)
+            {
+                newArguments.Add(Argument(LiteralExpression(SyntaxKind.DefaultLiteralExpression)));
+            }
+        }
 
-                if (!paramsMapping.TryGetValue(oldParamName, out var mapping))
-                {
-                    return null!;
-                }
+        var newInvocation = InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName(fieldName),
+                    IdentifierName(migrationRecord.Destination.MethodName)))
+            .WithArgumentList(ArgumentList(SeparatedList(newArguments)));
 
-                return SyntaxFactory.Argument(
-                    SyntaxFactory.IdentifierName(
-                        mapping.DestinationArgument));
-            })
-            .Where(x => x is not null)
-            .ToArray();
+        oldInvocation = root.GetCurrentNode(oldInvocation)!;
 
-        var newInvocation =
-            SyntaxFactory
-                .InvocationExpression(
-                    SyntaxFactory.MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        SyntaxFactory.IdentifierName(fieldName),
-                        SyntaxFactory.IdentifierName(migrationRecord.Destination.MethodName)))
-                .WithArgumentList(
-                    SyntaxFactory.ArgumentList(
-                        SyntaxFactory.SeparatedList(newArguments)));
-
-        root = root.ReplaceNode(oldInvocation, newInvocation);
+        root = root
+            .ReplaceNode(oldInvocation, newInvocation)
+            .WithAdditionalAnnotations(Formatter.Annotation);
 
         return document.WithSyntaxRoot(root);
+    }
+
+    private static Dictionary<string, ArgumentSyntax> MapArgumentsByName(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel)
+    {
+        var methodSymbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+        var parameters = methodSymbol?.Parameters ?? ImmutableArray<IParameterSymbol>.Empty;
+
+        var argumentsLookup = new Dictionary<string, ArgumentSyntax>(StringComparer.OrdinalIgnoreCase);
+        var arguments = invocation.ArgumentList.Arguments;
+
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            var paramName = arguments[i].NameColon?.Name.Identifier.Text ?? parameters.ElementAtOrDefault(i)?.Name;
+
+            if (paramName != null && !argumentsLookup.ContainsKey(paramName))
+            {
+                argumentsLookup.Add(paramName, arguments[i]);
+            }
+        }
+
+        return argumentsLookup;
+    }
+
+    private static ArgumentSyntax CreateArgument(ArgumentSyntax sourceArg, IParameterSymbol destParameter)
+    {
+        var newName = sourceArg.NameColon is not null
+            ? NameColon(destParameter.Name)
+            : null;
+
+        SyntaxToken? refKindToken = destParameter.RefKind switch
+        {
+            RefKind.Ref => Token(SyntaxKind.RefKeyword),
+            RefKind.Out => Token(SyntaxKind.OutKeyword),
+            RefKind.In => Token(SyntaxKind.InKeyword),
+            _ => null
+        };
+
+        var argument = sourceArg
+            .WithNameColon(newName)
+            .WithExpression(sourceArg.Expression);
+
+        return refKindToken is not null
+            ? argument.WithRefOrOutKeyword(refKindToken.Value)
+            : argument;
     }
 }

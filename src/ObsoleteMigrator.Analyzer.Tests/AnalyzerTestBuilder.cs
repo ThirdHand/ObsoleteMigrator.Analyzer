@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
+using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer.Tests;
 
@@ -11,8 +12,6 @@ public class AnalyzerTestBuilder<T> where T : DiagnosticAnalyzer, new()
     private readonly List<string> _sources = [];
     private readonly List<DiagnosticResult> _expectedDiagnostics = [];
     private readonly Dictionary<string, string> _additionalFiles = new();
-
-    private const string ConfigFilePath = "ObsoleteMigrator.json";
 
     public AnalyzerTestBuilder<T> WithSource(string source)
     {
@@ -34,13 +33,13 @@ public class AnalyzerTestBuilder<T> where T : DiagnosticAnalyzer, new()
 
     public AnalyzerTestBuilder<T> WithEmptyConfiguration()
     {
-        _additionalFiles.Add(ConfigFilePath, string.Empty);
+        _additionalFiles.Add(MigratorConstants.ConfigurationFilePath, string.Empty);
         return this;
     }
 
     public AnalyzerTestBuilder<T> WithConfiguration(string configText)
     {
-        _additionalFiles.Add(ConfigFilePath, configText);
+        _additionalFiles.Add(MigratorConstants.ConfigurationFilePath, configText);
         return this;
     }
 

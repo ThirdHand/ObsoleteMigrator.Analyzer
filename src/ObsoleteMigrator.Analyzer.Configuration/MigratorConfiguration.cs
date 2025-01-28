@@ -1,37 +1,38 @@
 ﻿using System.Text.Json;
 using ObsoleteMigrator.Analyzer.Configuration.Models;
+using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer.Configuration
 {
-    public class MigratorConfiguration
+    public static class MigratorConfiguration
     {
-        private readonly Dictionary<(string, string), MigrationRecord> _migrationRecords;
 
-        private MigratorConfiguration(Dictionary<(string, string), MigrationRecord> migrationRecords)
-        {
-            _migrationRecords = migrationRecords;
-        }
 
-        public static MigratorConfiguration? CreateFromJson(string? jsonText)
+        private static Dictionary<MappingKey, MigrationRecord> _migrationRecords = null!;
+
+        public static bool TryInitialize(string? migratorConfigurationJsonText)
         {
-            if (string.IsNullOrWhiteSpace(jsonText))
+            if (string.IsNullOrWhiteSpace(migratorConfigurationJsonText))
             {
-                return null;
+                return false;
             }
 
-            var migrationRecords = JsonSerializer.Deserialize<MigrationRecord[]>(jsonText!)!;
+            var migrationRecords = JsonSerializer.Deserialize<MigrationRecord[]>(migratorConfigurationJsonText!)!;
 
-            var migrationRecordsMap = migrationRecords
-                .ToDictionary(x => (x.Source.ClassFullName, x.Source.MethodName));
+            _migrationRecords = migrationRecords
+                .ToDictionary(x => new MappingKey(x.Source.ClassFullName, x.Source.MethodName));
 
-            return new MigratorConfiguration(migrationRecordsMap);
+            return true;
         }
 
-        public MigrationRecord? GetMigrationRecord(string classFullName, string methodName)
+        public static MigrationRecord GetMigrationRecord(MappingKey mappingKey)
         {
-            return _migrationRecords.TryGetValue((classFullName, methodName), out var record)
-                ? record
-                : null;
+            return _migrationRecords[mappingKey];
+        }
+
+        public static bool ContainsMigrationRecord(MappingKey mappingKey)
+        {
+            return _migrationRecords.ContainsKey(mappingKey);
         }
     }
 }

@@ -9,6 +9,13 @@
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
 
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <DevelopmentDependency>true</DevelopmentDependency>
+
         <RootNamespace>ObsoleteMigrator.Analyzer</RootNamespace>
         <AssemblyName>ObsoleteMigrator.Analyzer</AssemblyName>
     </PropertyGroup>

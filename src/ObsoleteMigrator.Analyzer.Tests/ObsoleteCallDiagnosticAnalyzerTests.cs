@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Testing;
+using ObsoleteMigrator.Analyzer.Shared;
 using Xunit;
 
 namespace ObsoleteMigrator.Analyzer.Tests;
@@ -96,7 +97,7 @@ public class ObsoleteCallDiagnosticAnalyzerTests
             """;
 
         var expectedDiagnostic =
-            new DiagnosticResult(ObsoleteCallDiagnosticAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
+            new DiagnosticResult(MigratorConstants.DiagnosticId, DiagnosticSeverity.Warning)
                 .WithLocation(6, 9);
 
         var test = new AnalyzerTestBuilder<ObsoleteCallDiagnosticAnalyzer>()
@@ -125,29 +126,6 @@ public class ObsoleteCallDiagnosticAnalyzerTests
                   },
                     "mappings": []
                 }]
-            """;
-
-        var sourceCode = /*lang=csharp*/ """
-                using System;
-            
-                class Foo
-                {
-                    public void MyMethod()
-                    {
-                        var bar = new Bar();
-                        bar.ObsoleteMethod();
-                    }
-                }
-            
-                class Bar
-                {
-                    public void ObsoleteMethod() { }
-                }
-            
-                class NewBar
-                {
-                    public void NewMethod() { }
-                }
             """;
 
         var test = new AnalyzerTestBuilder<ObsoleteCallDiagnosticAnalyzer>()

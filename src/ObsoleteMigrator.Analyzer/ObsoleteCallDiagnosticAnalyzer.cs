@@ -1,32 +1,24 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using ObsoleteMigrator.Analyzer.Configuration;
+using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
 {
-    private MigratorConfiguration _migratorConfiguration = null!;
-
-    public const string DiagnosticId = "OCD0001";
-
-    private const string ConfigurationFilePath = "ObsoleteMigrator.json";
-    private const string Title = "Title";
-    private const string Category = "Obsolete";
-    private const string MessageFormat = "Obsolete migrator analyzer";
-
     private static readonly DiagnosticDescriptor Rule = new(
-        DiagnosticId,
-        Title,
-        MessageFormat,
-        Category,
+        MigratorConstants.DiagnosticId,
+        MigratorConstants.DiagnosticTitle,
+        MigratorConstants.MessageFormat,
+        MigratorConstants.Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
@@ -38,32 +30,34 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterCompilationStartAction(compilationContext =>
+        context.RegisterCompilationStartAction(OnCompilationStart);
+    }
+
+    private void OnCompilationStart(CompilationStartAnalysisContext compilationContext)
+    {
+        var additionalFiles = compilationContext.Options.AdditionalFiles;
+
+        var configFile = additionalFiles
+            .SingleOrDefault(file => file.Path.EndsWith(
+                MigratorConstants.ConfigurationFilePath,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (configFile is null)
         {
-            var additionalFiles = compilationContext.Options.AdditionalFiles;
+            return;
+        }
 
-            var configFile = additionalFiles
-                .SingleOrDefault(file => file.Path.EndsWith(ConfigurationFilePath, StringComparison.OrdinalIgnoreCase));
+        var configFileText = configFile.GetText()?.ToString();
+        var isValidConfigurationProvided = MigratorConfiguration.TryInitialize(configFileText);
 
-            if (configFile is null)
-            {
-                return;
-            }
+        if (!isValidConfigurationProvided)
+        {
+            return;
+        }
 
-            var configFileText = configFile.GetText()?.ToString();
-            var configuration = MigratorConfiguration.CreateFromJson(configFileText);
-
-            if (configuration is null)
-            {
-                return;
-            }
-
-            _migratorConfiguration = configuration;
-
-            compilationContext.RegisterSyntaxNodeAction(
-                AnalyzeInvocationExpression,
-                SyntaxKind.InvocationExpression);
-        });
+        compilationContext.RegisterSyntaxNodeAction(
+            AnalyzeInvocationExpression,
+            SyntaxKind.InvocationExpression);
     }
 
     private void AnalyzeInvocationExpression(SyntaxNodeAnalysisContext nodeContext)
@@ -78,19 +72,22 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var migrationRecord = _migratorConfiguration.GetMigrationRecord(
+        var mappingKey = new MappingKey(
             methodSymbol.ContainingType.ToDisplayString(),
             methodSymbol.Name);
 
-        if (migrationRecord is null)
+        if (!MigratorConfiguration.ContainsMigrationRecord(mappingKey))
         {
             return;
         }
 
-        var migrationRecordJson = JsonSerializer.Serialize(migrationRecord);
-
-        var diagnosticProperties = ImmutableDictionary<string, string>.Empty
-            .Add(nameof(migrationRecord), migrationRecordJson);
+        var diagnosticProperties =
+            new Dictionary<string, string>
+                {
+                    { nameof(MappingKey.DisplayType), mappingKey.DisplayType },
+                    { nameof(MappingKey.MethodName), mappingKey.MethodName }
+                }
+                .ToImmutableDictionary();
 
         var diagnostic = Diagnostic.Create(
             Rule,

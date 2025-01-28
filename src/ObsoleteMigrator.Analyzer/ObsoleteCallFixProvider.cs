@@ -1,6 +1,5 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -8,7 +7,9 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using ObsoleteMigrator.Analyzer.Configuration;
 using ObsoleteMigrator.Analyzer.Configuration.Models;
+using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer;
 
@@ -16,7 +17,7 @@ namespace ObsoleteMigrator.Analyzer;
 public class ObsoleteCallFixProvider : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-        ImmutableArray.Create(ObsoleteCallDiagnosticAnalyzer.DiagnosticId);
+        ImmutableArray.Create(MigratorConstants.DiagnosticId);
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -34,14 +35,17 @@ public class ObsoleteCallFixProvider : CodeFixProvider
             return;
         }
 
-        var migrationRecordJson = diagnostic.Properties[nameof(MigrationRecord)]!;
-        var migrationRecord = JsonSerializer.Deserialize<MigrationRecord>(migrationRecordJson)!;
+        var displayType = diagnostic.Properties[nameof(MappingKey.DisplayType)]!;
+        var methodName = diagnostic.Properties[nameof(MappingKey.MethodName)]!;
+
+        var mappingKey = new MappingKey(displayType, methodName);
+        var migrationRecord = MigratorConfiguration.GetMigrationRecord(mappingKey);
 
         context.RegisterCodeFix(
             CodeAction.Create(
-                "Test title",
+                MigratorConstants.CodeFixTitle,
                 token => PerformCodeFix(context.Document, migrationRecord, root, invocation, token),
-                ObsoleteCallDiagnosticAnalyzer.DiagnosticId),
+                MigratorConstants.DiagnosticId),
             diagnostic);
     }
 
@@ -68,7 +72,11 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         string? fieldName = null;
         if (destinationFieldDeclaration is null)
         {
-            EnsureUsingDirectiveExists(migrationRecord.Destination.ClassFullName, root, ref document);
+            EnsureUsingDirectiveExists(
+                semanticModel,
+                migrationRecord.Destination.ClassFullName,
+                root,
+                ref document);
 
             destinationFieldDeclaration = CreateDestinationField(
                 migrationRecord.Destination.ClassFullName,
@@ -86,6 +94,7 @@ public class ObsoleteCallFixProvider : CodeFixProvider
         fieldName ??= GetFieldNameFromFieldDeclaration(destinationFieldDeclaration);
 
         return ReplaceObsoleteCall(
+            semanticModel,
             fieldName,
             migrationRecord,
             oldInvocation,
@@ -145,7 +154,8 @@ public class ObsoleteCallFixProvider : CodeFixProvider
                     .ConstructorDeclaration(classDeclaration.Identifier)
                     .WithModifiers(
                         SyntaxFactory.TokenList(
-                            SyntaxFactory.Token(SyntaxKind.PublicKeyword)));
+                            SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                    .WithBody(SyntaxFactory.Block());
 
             classDeclaration = classDeclaration.AddMembers(constructor);
         }
@@ -170,22 +180,27 @@ public class ObsoleteCallFixProvider : CodeFixProvider
             });
     }
 
-    private static void EnsureUsingDirectiveExists(string classFullName, SyntaxNode root, ref Document document)
+    private static void EnsureUsingDirectiveExists(
+        SemanticModel semanticModel,
+        string classFullName,
+        SyntaxNode root,
+        ref Document document)
     {
         var usings = root
             .DescendantNodesAndSelf()
             .OfType<UsingDirectiveSyntax>()
             .ToList();
 
-        var targetNamespace = classFullName.Substring(0, classFullName.LastIndexOf('.'));
+        var destinationType = semanticModel.Compilation.GetTypeByMetadataName(classFullName);
+        var targetNamespace = destinationType?.ContainingNamespace?.ToDisplayString();
 
-        if (usings.Any(u => u.Name.ToString() == targetNamespace))
+        if (targetNamespace == "<global namespace>" || usings.Any(u => u.Name.ToString() == targetNamespace))
         {
             return;
         }
 
         var newUsingDirective = SyntaxFactory.UsingDirective(
-            SyntaxFactory.ParseName(targetNamespace));
+            SyntaxFactory.ParseName(targetNamespace!));
 
         var namespaceDeclaration = root
             .DescendantNodesAndSelf()
@@ -224,19 +239,25 @@ public class ObsoleteCallFixProvider : CodeFixProvider
     }
 
     private static Document ReplaceObsoleteCall(
+        SemanticModel semanticModel,
         string fieldName,
         MigrationRecord migrationRecord,
         InvocationExpressionSyntax oldInvocation,
         SyntaxNode root,
         Document document)
     {
+        var methodSymbol = semanticModel.GetSymbolInfo(oldInvocation).Symbol as IMethodSymbol;
+        var parameters = methodSymbol?.Parameters;
+
         var paramsMapping = migrationRecord.Mappings
             .ToDictionary(x => x.SourceArgument);
 
         var newArguments = oldInvocation.ArgumentList.Arguments
-            .Select(x =>
+            .Select((x, index) =>
             {
-                var oldParamName = x.NameColon?.Name.Identifier.Text ?? x.ToString();
+                var parameter = parameters?[index];
+                var oldParamName = x.NameColon?.Name.Identifier.Text ?? parameter!.Name;
+
                 if (!paramsMapping.TryGetValue(oldParamName, out var mapping))
                 {
                     return null!;

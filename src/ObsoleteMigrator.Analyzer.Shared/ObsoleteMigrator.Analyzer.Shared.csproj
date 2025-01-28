@@ -2,21 +2,13 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>13</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <LangVersion>13</LangVersion>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <AnalysisMode>AllEnabledByDefault</AnalysisMode>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <DevelopmentDependency>true</DevelopmentDependency>
     </PropertyGroup>
-
-    <ItemGroup>
-      <PackageReference Include="System.Text.Json" Version="9.0.0" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\ObsoleteMigrator.Analyzer.Shared\ObsoleteMigrator.Analyzer.Shared.csproj" />
-    </ItemGroup>
 
 </Project>

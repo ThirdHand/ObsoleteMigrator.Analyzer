@@ -11,7 +11,9 @@ using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer;
 
+#pragma warning disable RS1038
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
+#pragma warning restore RS1038
 public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
 {
     private static readonly DiagnosticDescriptor Rule = new(
@@ -32,7 +34,7 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(OnCompilationStart);
     }
 
-    private void OnCompilationStart(CompilationStartAnalysisContext compilationContext)
+    private static void OnCompilationStart(CompilationStartAnalysisContext compilationContext)
     {
         var additionalFiles = compilationContext.Options.AdditionalFiles;
 
@@ -80,6 +82,8 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        var migrationRecord = MigratorConfiguration.GetMigrationRecord(mappingKey);
+
         var diagnosticProperties =
             new Dictionary<string, string>
                 {
@@ -91,7 +95,12 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
         var diagnostic = Diagnostic.Create(
             Rule,
             invocation.GetLocation(),
-            diagnosticProperties!);
+            string.Format(
+                MigratorConstants.MessageFormat,
+                $"{mappingKey.DisplayType}.{mappingKey.MethodName}",
+                migrationRecord.Destination.ClassFullName.Split('.').Last(),
+                migrationRecord.Destination.MethodName),
+            diagnosticProperties);
 
         nodeContext.ReportDiagnostic(diagnostic);
     }

@@ -13,11 +13,14 @@
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <AnalysisMode>AllEnabledByDefault</AnalysisMode>
         <IncludeBuildOutput>false</IncludeBuildOutput>
-        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <DevelopmentDependency>true</DevelopmentDependency>
+        <NoPackageAnalysis>true</NoPackageAnalysis>
 
         <RootNamespace>ObsoleteMigrator.Analyzer</RootNamespace>
         <AssemblyName>ObsoleteMigrator.Analyzer</AssemblyName>
+
+        <IsPackable>true</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -36,6 +39,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ObsoleteMigrator.Analyzer.Configuration\ObsoleteMigrator.Analyzer.Configuration.csproj" />
+      <ProjectReference Include="..\ObsoleteMigrator.Analyzer.Shared\ObsoleteMigrator.Analyzer.Shared.csproj" />
     </ItemGroup>
 
 </Project>

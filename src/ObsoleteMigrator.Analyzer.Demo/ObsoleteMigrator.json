@@ -1,0 +1,30 @@
+﻿[
+    {
+        "source": {
+            "classFullName": "OldClass",
+            "methodName": "OldMethodWithALotOfParams"
+        },
+        "destination": {
+            "classFullName": "NewClass",
+            "methodName": "NewMethodWithALotOfParams"
+        },
+        "mappings": [
+            {
+                "sourceArgument": "a",
+                "destinationArgument": "z"
+            },
+            {
+                "sourceArgument": "b",
+                "destinationArgument": "x"
+            },
+            {
+                "sourceArgument": "c",
+                "destinationArgument": "c"
+            },
+            {
+                "sourceArgument": "d",
+                "destinationArgument": "v"
+            }
+        ]
+    }
+]

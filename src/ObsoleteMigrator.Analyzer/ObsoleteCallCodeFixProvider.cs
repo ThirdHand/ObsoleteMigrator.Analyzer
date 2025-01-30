@@ -17,8 +17,8 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ObsoleteMigrator.Analyzer;
 
-[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ObsoleteCallFixProvider))]
-public class ObsoleteCallFixProvider : CodeFixProvider
+[ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ObsoleteCallCodeFixProvider))]
+public class ObsoleteCallCodeFixProvider : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = [MigratorConstants.DiagnosticId];
 

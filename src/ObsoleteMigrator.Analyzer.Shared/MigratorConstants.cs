@@ -1,12 +1,12 @@
 ﻿namespace ObsoleteMigrator.Analyzer.Shared;
 
-public class MigratorConstants
+public static class MigratorConstants
 {
     public const string DiagnosticId = "OCD0001";
     public const string ConfigurationFilePath = "ObsoleteMigrator.json";
 
-    public const string DiagnosticTitle = "DiagnosticTitle";
-    public const string CodeFixTitle = "CodeFixTitle";
-    public const string Category = "Obsolete";
-    public const string MessageFormat = "Obsolete migrator analyzer";
+    public const string DiagnosticTitle = "Устаревший вызов метода";
+    public const string CodeFixTitle = "Заменить устаревший вызов";
+    public const string Category = "Modernization";
+    public const string MessageFormat = "Метод '{0}' устарел. Используйте '{1}.{2}' вместо текущей реализации.";
 }

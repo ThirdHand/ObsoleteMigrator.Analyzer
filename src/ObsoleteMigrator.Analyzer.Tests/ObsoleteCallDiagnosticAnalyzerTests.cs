@@ -27,7 +27,7 @@ public class ObsoleteCallDiagnosticAnalyzerTests
             }
         """;
 
-    [Fact(DisplayName = "Analyzer neither throw nor create diagnostics if config file does not exist")]
+    [Fact(DisplayName = "Анализатор не создает диагностику, если конфигурационный файл отсутствует")]
     public async Task ObsoleteCallsDiagnosticAnalyzer_NoConfigFile_ReportsNoDiagnostics()
     {
         //Arrange
@@ -39,7 +39,7 @@ public class ObsoleteCallDiagnosticAnalyzerTests
         await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact(DisplayName = "Analyzer neither throw nor create diagnostics if config file is empty")]
+    [Fact(DisplayName = "Анализатор не создает диагностику, если конфигурационный файл пустой")]
     public async Task ObsoleteCallsDiagnosticAnalyzer_EmptyConfigFile_ReportsNoDiagnostics()
     {
         //Arrange
@@ -52,11 +52,11 @@ public class ObsoleteCallDiagnosticAnalyzerTests
         await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact(DisplayName = "Analyzer reports diagnostic for obsolete method call with mapping")]
+    [Fact(DisplayName = "Анализатор репортит диагностику, если конфигурация валидна")]
     public async Task ObsoleteCallsDiagnosticAnalyzer_ValidConfigWithMapping_ReportsDiagnostic()
     {
         // Arrange
-        var configJson = /*lang=json*/ """
+        const string configJson = /*lang=json*/ """
             [{
               "source": {
                 "classFullName": "Bar",
@@ -75,13 +75,13 @@ public class ObsoleteCallDiagnosticAnalyzerTests
             }]
             """;
 
-        var sourceCode = /*lang=csharp*/ """
+        const string sourceCode = /*lang=csharp*/ """
             class Foo
             {
                 public void MyMethod()
                 {
                     var bar = new Bar();
-                    bar.ObsoleteMethod(123);
+                    [|bar.ObsoleteMethod(123)|];
                 }
             }
 
@@ -96,36 +96,31 @@ public class ObsoleteCallDiagnosticAnalyzerTests
             }
             """;
 
-        var expectedDiagnostic =
-            new DiagnosticResult(MigratorConstants.DiagnosticId, DiagnosticSeverity.Warning)
-                .WithLocation(6, 9);
-
         var test = new AnalyzerTestBuilder<ObsoleteCallDiagnosticAnalyzer>()
             .WithSource(sourceCode)
             .WithConfiguration(configJson)
-            .WithExpectedDiagnostics([expectedDiagnostic])
             .Build();
 
         // Act & Assert
         await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact(DisplayName = "Analyzer doesn't report diagnostic if config doesn't match the method")]
+    [Fact(DisplayName = "Анализатор не создает диагностику для методов не из конфига")]
     public async Task ObsoleteCallsDiagnosticAnalyzer_ConfigDoesntMatchMethod_ReportsNoDiagnostics()
     {
         // Arrange
-        var configJson = /*lang=json*/ """
-                [{
-                  "source": {
-                    "classFullName": "Bar",
-                    "methodName": "DifferentMethod"
-                  },
-                  "destination": {
-                    "classFullName": "NewBar",
-                    "methodName": "NewMethod"
-                  },
-                    "mappings": []
-                }]
+        const string configJson = /*lang=json*/ """
+            [{
+              "source": {
+                "classFullName": "Bar",
+                "methodName": "DifferentMethod"
+              },
+              "destination": {
+                "classFullName": "NewBar",
+                "methodName": "NewMethod"
+              },
+                "mappings": []
+            }]
             """;
 
         var test = new AnalyzerTestBuilder<ObsoleteCallDiagnosticAnalyzer>()

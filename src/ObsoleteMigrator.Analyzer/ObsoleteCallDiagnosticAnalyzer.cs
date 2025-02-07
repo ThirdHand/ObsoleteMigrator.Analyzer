@@ -7,7 +7,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using ObsoleteMigrator.Analyzer.Configuration;
-using ObsoleteMigrator.Analyzer.Configuration.Models;
 using ObsoleteMigrator.Analyzer.Models;
 
 namespace ObsoleteMigrator.Analyzer;

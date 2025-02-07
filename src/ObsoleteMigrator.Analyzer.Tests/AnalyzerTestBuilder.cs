@@ -3,7 +3,6 @@ using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
-using ObsoleteMigrator.Analyzer.Shared;
 
 namespace ObsoleteMigrator.Analyzer.Tests;
 

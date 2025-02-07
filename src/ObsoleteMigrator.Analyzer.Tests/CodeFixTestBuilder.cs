@@ -1,6 +1,5 @@
 ﻿using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Diagnostics;
-using ObsoleteMigrator.Analyzer.Shared;
 using Xunit.Internal;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis.Testing;

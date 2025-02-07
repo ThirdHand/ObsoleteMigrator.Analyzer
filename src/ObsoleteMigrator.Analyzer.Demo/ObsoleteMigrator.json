@@ -1,29 +1,29 @@
 ﻿[
     {
-        "source": {
-            "classFullName": "OldClass",
-            "methodName": "OldMethodWithALotOfParams"
+        "source":{
+            "classFullName":"ObsoleteMigrator.Analyzer.Demo.OldClass",
+            "methodName":"OldMethodWithALotOfParams"
         },
-        "destination": {
-            "classFullName": "NewClass",
-            "methodName": "NewMethodWithALotOfParams"
+        "destination":{
+            "classFullName":"ObsoleteMigrator.Analyzer.Demo.NewClass",
+            "methodName":"NewMethod"
         },
-        "mappings": [
+        "mappings":[
             {
-                "sourceArgument": "a",
-                "destinationArgument": "z"
+                "sourceArgument":"a",
+                "destinationArgument":"v"
             },
             {
-                "sourceArgument": "b",
-                "destinationArgument": "x"
+                "sourceArgument":"b",
+                "destinationArgument":"x"
             },
             {
-                "sourceArgument": "c",
-                "destinationArgument": "c"
+                "sourceArgument":"c",
+                "destinationArgument":"c"
             },
             {
-                "sourceArgument": "d",
-                "destinationArgument": "v"
+                "sourceArgument":"d",
+                "destinationArgument":"z"
             }
         ]
     }

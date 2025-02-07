@@ -19,6 +19,7 @@
 
         <RootNamespace>ObsoleteMigrator.Analyzer</RootNamespace>
         <AssemblyName>ObsoleteMigrator.Analyzer</AssemblyName>
+        <Version>3.5.54</Version>
 
         <IsPackable>true</IsPackable>
     </PropertyGroup>
@@ -28,18 +29,20 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" PrivateAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
-      <AdditionalFiles Remove="AnalyzerReleases.Shipped.md" />
-      <AdditionalFiles Remove="AnalyzerReleases.Unshipped.md" />
+        <AdditionalFiles Remove="AnalyzerReleases.Shipped.md" />
+        <AdditionalFiles Remove="AnalyzerReleases.Unshipped.md" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ObsoleteMigrator.Analyzer.Configuration\ObsoleteMigrator.Analyzer.Configuration.csproj" />
-      <ProjectReference Include="..\ObsoleteMigrator.Analyzer.Shared\ObsoleteMigrator.Analyzer.Shared.csproj" />
+        <None Include="$(OutputPath)\$(AssemblyName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false"/>
     </ItemGroup>
 
 </Project>

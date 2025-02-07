@@ -9,7 +9,9 @@
 
     <ItemGroup>
       <None Remove="ObsoleteMigrator.json" />
-      <AdditionalFiles Include="ObsoleteMigrator.json" />
+      <AdditionalFiles Include="ObsoleteMigrator.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </AdditionalFiles>
     </ItemGroup>
 
 </Project>

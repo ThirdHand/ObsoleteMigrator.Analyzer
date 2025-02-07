@@ -7,7 +7,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using ObsoleteMigrator.Analyzer.Configuration;
-using ObsoleteMigrator.Analyzer.Shared;
+using ObsoleteMigrator.Analyzer.Configuration.Models;
+using ObsoleteMigrator.Analyzer.Models;
 
 namespace ObsoleteMigrator.Analyzer;
 
@@ -48,13 +49,8 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var configFileText = configFile.GetText()?.ToString();
-        var isValidConfigurationProvided = MigratorConfiguration.TryInitialize(configFileText);
-
-        if (!isValidConfigurationProvided)
-        {
-            return;
-        }
+        var configSourceText = configFile.GetText(compilationContext.CancellationToken);
+        MigratorConfigurationProvider.Initialize(configSourceText);
 
         compilationContext.RegisterSyntaxNodeAction(
             AnalyzeInvocationExpression,
@@ -77,12 +73,12 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
             methodSymbol.ContainingType.ToDisplayString(),
             methodSymbol.Name);
 
-        if (!MigratorConfiguration.ContainsMigrationRecord(mappingKey))
+        var migrationRecord = MigratorConfigurationProvider.Get(mappingKey);
+
+        if (migrationRecord is null)
         {
             return;
         }
-
-        var migrationRecord = MigratorConfiguration.GetMigrationRecord(mappingKey);
 
         var diagnosticProperties =
             new Dictionary<string, string>
@@ -92,15 +88,25 @@ public class ObsoleteCallDiagnosticAnalyzer : DiagnosticAnalyzer
                 }
                 .ToImmutableDictionary();
 
+        var destinationTypeSymbol = semanticModel.Compilation
+            .GetTypeByMetadataName(migrationRecord.Destination.ClassFullName);
+
+        var destinationMethodSymbol = destinationTypeSymbol?
+            .GetMembers(migrationRecord.Destination.MethodName)
+            .OfType<IMethodSymbol>()
+            .FirstOrDefault();
+
+        if (destinationMethodSymbol == null)
+        {
+            return;
+        }
+
         var diagnostic = Diagnostic.Create(
             Rule,
             invocation.GetLocation(),
-            string.Format(
-                MigratorConstants.MessageFormat,
-                $"{mappingKey.DisplayType}.{mappingKey.MethodName}",
-                migrationRecord.Destination.ClassFullName.Split('.').Last(),
-                migrationRecord.Destination.MethodName),
-            diagnosticProperties);
+            diagnosticProperties!,
+            SymbolDisplay.ToDisplayString(symbolInfo.Symbol, SymbolDisplayFormat.MinimallyQualifiedFormat),
+            SymbolDisplay.ToDisplayString(destinationMethodSymbol, SymbolDisplayFormat.MinimallyQualifiedFormat));
 
         nodeContext.ReportDiagnostic(diagnostic);
     }

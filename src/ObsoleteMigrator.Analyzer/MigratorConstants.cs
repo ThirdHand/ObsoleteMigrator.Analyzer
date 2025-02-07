@@ -1,4 +1,4 @@
-﻿namespace ObsoleteMigrator.Analyzer.Shared;
+﻿namespace ObsoleteMigrator.Analyzer;
 
 public static class MigratorConstants
 {
@@ -8,5 +8,5 @@ public static class MigratorConstants
     public const string DiagnosticTitle = "Устаревший вызов метода";
     public const string CodeFixTitle = "Заменить устаревший вызов";
     public const string Category = "Modernization";
-    public const string MessageFormat = "Метод '{0}' устарел. Используйте '{1}.{2}' вместо текущей реализации.";
+    public const string MessageFormat = "Метод '{0}' устарел. Используйте '{1}' вместо текущей реализации.";
 }

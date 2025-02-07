@@ -1,7 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Testing;
-using ObsoleteMigrator.Analyzer.Shared;
 using Xunit;
 
 namespace ObsoleteMigrator.Analyzer.Tests;

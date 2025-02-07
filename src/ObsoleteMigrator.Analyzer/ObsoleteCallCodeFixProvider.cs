@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using ObsoleteMigrator.Analyzer.Configuration;
 using ObsoleteMigrator.Analyzer.Configuration.Models;
-using ObsoleteMigrator.Analyzer.Shared;
+using ObsoleteMigrator.Analyzer.Models;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace ObsoleteMigrator.Analyzer;
@@ -42,7 +42,7 @@ public class ObsoleteCallCodeFixProvider : CodeFixProvider
         var methodName = diagnostic.Properties[nameof(MappingKey.MethodName)]!;
 
         var mappingKey = new MappingKey(displayType, methodName);
-        var migrationRecord = MigratorConfiguration.GetMigrationRecord(mappingKey);
+        var migrationRecord = MigratorConfigurationProvider.Get(mappingKey)!;
 
         context.RegisterCodeFix(
             CodeAction.Create(
@@ -77,9 +77,12 @@ public class ObsoleteCallCodeFixProvider : CodeFixProvider
 
         if (destinationFieldDeclaration is null)
         {
+            var namespaceDeclaration = oldInvocation.FirstAncestorOrSelf<BaseNamespaceDeclarationSyntax>()!;
+
             EnsureUsingDirectiveExists(
                 semanticModel,
                 migrationRecord.Destination.ClassFullName,
+                namespaceDeclaration,
                 ref root);
 
             var trackedOldClassDeclaration = root.GetCurrentNode(oldClassDeclaration)!;
@@ -225,10 +228,16 @@ public class ObsoleteCallCodeFixProvider : CodeFixProvider
     private static void EnsureUsingDirectiveExists(
         SemanticModel semanticModel,
         string classFullName,
+        BaseNamespaceDeclarationSyntax namespaceDeclaration,
         ref SyntaxNode root)
     {
         var destinationType = semanticModel.Compilation.GetTypeByMetadataName(classFullName);
         var targetNamespace = destinationType!.ContainingNamespace!.ToDisplayString();
+
+        if (namespaceDeclaration.Name.ToString() == targetNamespace)
+        {
+            return;
+        }
 
         var compilationUnit = (root as CompilationUnitSyntax)!;
         var targetUsingAlreadyAdded = compilationUnit.Usings

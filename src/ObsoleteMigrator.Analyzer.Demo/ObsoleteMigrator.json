@@ -1,0 +1,30 @@
+﻿[
+    {
+        "source":{
+            "classFullName":"ObsoleteMigrator.Analyzer.Demo.OldClass",
+            "methodName":"OldMethodWithALotOfParams"
+        },
+        "destination":{
+            "classFullName":"ObsoleteMigrator.Analyzer.Demo.NewClass",
+            "methodName":"NewMethod"
+        },
+        "mappings":[
+            {
+                "sourceArgument":"a",
+                "destinationArgument":"v"
+            },
+            {
+                "sourceArgument":"b",
+                "destinationArgument":"x"
+            },
+            {
+                "sourceArgument":"c",
+                "destinationArgument":"c"
+            },
+            {
+                "sourceArgument":"d",
+                "destinationArgument":"z"
+            }
+        ]
+    }
+]
